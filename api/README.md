@@ -1,80 +1,64 @@
-# Quick FastAPI Boilerplate
+# FastAPI API Container
 
-This is a basic FastAPI project template, designed to quickly start building APIs with Python. The project is structured with modularity and scalability in mind.
+This is a containerized FastAPI project designed to quickly start building APIs with Python. The project is structured with modularity and scalability in mind, and it uses Poetry for dependency management.
 
 ## Project Structure
 
 ```plaintext
-fastapi_app/
-├── app/
-│   ├── __init__.py
-│   ├── main.py
-│   ├── api/
-│   │   ├── __init__.py
-│   │   └── routes.py
-│   ├── core/
-│   │   ├── __init__.py
-│   │   └── config.py
-│   └── models/
-│       └── __init__.py
-├── .env
-├── .gitignore
-├── requirements.txt
-└── README.md
+api/
+├── __init__.py
+├── main.py
+├── routes.py
+└── models/
+    └── __init__.py
 ```
 
 ## Prerequisites
 
 - Python 3.7+
-- `pip` (Python package manager)
-- (Optional) Virtual environment setup tool (`venv` or `virtualenv`)
+- [Poetry](https://python-poetry.org/) (for dependency management)
+- Docker (for containerization)
 
 ## Setup Instructions
 
-1. **Clone the Repository**
+### Clone the Repository
 
-   ```bash
-   git clone https://github.com/johnx25bd/fastapi-boilerplate.git
-   cd fastapi-boilerplate
-   ```
+### Create and Activate a Virtual Environment
 
-2. **Create and Activate a Virtual Environment**
+Poetry automatically manages virtual environments. To create and activate one, simply run:
 
-   It’s recommended to use a virtual environment to keep dependencies isolated.
+```bash
+poetry shell
+```
 
-   ```bash
-   python3 -m venv venv
-   source venv/bin/activate  # On Windows, use `venv\Scripts\activate`
-   ```
+### Install Dependencies
 
-3. **Install Dependencies**
+Install all necessary packages using Poetry:
 
-   Install all necessary packages using the `requirements.txt` file.
+```bash
+poetry install
+```
 
-   ```bash
-   pip install -r requirements.txt
-   ```
+### Environment Variables (Optional)
 
-4. **Environment Variables (Optional)**
+If your application requires environment variables, set them up in a `.env` file in the root directory.
 
-   If your application requires environment variables, set them up in a `.env` file in the root directory.
+Example `.env`:
 
-   Example `.env`:
+```plaintext
+DATABASE_URL=postgresql://user:password@localhost/dbname
+SECRET_KEY=your_secret_key
+```
 
-   ```plaintext
-   DATABASE_URL=postgresql://user:password@localhost/dbname
-   SECRET_KEY=your_secret_key
-   ```
-
-## Running the Server
+## Running the Server Locally
 
 Start the FastAPI server using Uvicorn:
 
 ```bash
-uvicorn app.main:app --reload
+poetry run uvicorn main:app --reload
 ```
 
-- `app.main:app` specifies the `app` instance in `main.py`.
+- `main:app` specifies the `app` instance in `main.py`.
 - `--reload` enables hot-reloading, useful for development.
 
 After starting the server, you should see the output indicating that it’s running at `http://127.0.0.1:8000`.
@@ -105,10 +89,9 @@ curl -X 'GET' \
 For production, it’s recommended to run Uvicorn with a process manager like **Gunicorn** and additional workers:
 
 ```bash
-gunicorn -k uvicorn.workers.UvicornWorker app.main:app --workers 4
+gunicorn -k uvicorn.workers.UvicornWorker main:app --workers 4
 ```
 
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-```

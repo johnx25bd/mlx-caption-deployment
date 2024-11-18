@@ -1,7 +1,7 @@
 
 from fastapi import FastAPI
-from models.schemas import QueryRequest, DocumentResponse, SelectRequest
 
+from models.schemas import QueryRequest, DocumentResponse, SelectRequest
 from services.search import get_docs
 from utils.data import log_event
 app = FastAPI()

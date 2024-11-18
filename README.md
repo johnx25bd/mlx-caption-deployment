@@ -1,45 +1,17 @@
 # Search App, Containerized
 
-## Temporary Note:
+## Quickstart
 
-This is set up to run, but compose.yml is not yet configured to build the images.
+- Copy the four data files from this [Google Drive folder](https://drive.google.com/drive/folders/16aTFOtnjFngyJLgHIHA8S8n23hF9tItP?usp=drive_link) into the `/api/data` directory.
+- Run `docker-compose up --build` to start the services.
+- Access the application at `http://localhost:80`.
 
-To run via command line:
-```bash
-# Create network
-docker network create search-network
-
-# Build images
-docker build -t mlx-deploy-search-api ./api
-docker build -t mlx-deploy-search-streamlit ./streamlit
-
-# Start API first
-docker run -d --name api --network search-network -p 8000:8000 mlx-deploy-search-api
-
-# Start Streamlit
-docker run -d --name mlx-deploy-search-streamlit --network search-network -p 8501:8501 mlx-deploy-search-streamlit
-```
-
-To stop and clean up:
-```bash
-# Stop containers
-docker stop api mlx-deploy-search-streamlit
-
-# Remove containers
-docker rm api mlx-deploy-search-streamlit
-
-# Remove network
-docker network rm search-network
-```
-
----
 This repository contains a containerized web application using FastAPI for the backend API, Streamlit for the frontend, and Nginx as a reverse proxy. The application is orchestrated using Docker Compose.
 
 ## Architecture
 
 Client Request → Nginx (Port 80) → FastAPI (Port 8000)
 → Streamlit (Port 8501)
-
 
 - **Nginx**: Reverse proxy that routes requests to the appropriate service
 - **FastAPI**: Backend API service
@@ -59,6 +31,11 @@ Client Request → Nginx (Port 80) → FastAPI (Port 8000)
 ├── docker-compose.yml
 ├── api/
 │ ├── Dockerfile
+│ ├── data/ # 👇 these need to be downloaded from the Google Drive folder
+│ │ ├── word-vector-embeddings.model
+│ │ ├── two_tower_state_dict.pth
+│ │ ├── doc-index-64.faiss
+│ │ └── training-with-tokens.parquet
 │ ├── app/
 │ │ ├── main.py
 │ │ └── ...
@@ -68,9 +45,9 @@ Client Request → Nginx (Port 80) → FastAPI (Port 8000)
 │ ├── app.py
 │ └── requirements.txt
 └── nginx/
-├── Dockerfile
-└── conf/
-└── nginx.conf
+|    ├── Dockerfile
+|    └── conf/
+|    └── nginx.conf
 ```
 
 ## Quick Start
