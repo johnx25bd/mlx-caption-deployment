@@ -9,8 +9,8 @@ class ImageCaptionDataset(Dataset):
         self.tokenizer = GPT2Tokenizer.from_pretrained('gpt2') # Set tokenizer
         self.tokenizer.pad_token = self.tokenizer.eos_token  # Set padding token
 
-    # def __len__(self):
-    #     return len(self.dataset)
+    def __len__(self):
+        return len(self.dataset)
 
     def __getitem__(self, idx):
         item = self.dataset[idx]
@@ -21,6 +21,9 @@ class ImageCaptionDataset(Dataset):
 
         # Convert patches to a tensor
         patches_tensor = torch.tensor(patches, dtype=torch.float32)
+
+        # **Add this line to check the shape**
+        # print(f"Sample {idx}, patches_tensor shape: {patches_tensor.shape}")
 
         return {
             'patches': patches_tensor,
