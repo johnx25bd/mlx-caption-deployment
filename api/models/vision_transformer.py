@@ -60,7 +60,7 @@ class GPT2Decoder(nn.Module):
         )
         self.logits = nn.Linear(self.gpt2.config.hidden_size, self.tokenizer.vocab_size)
 
-    def forward(self, batch_size, encoded_images, input_ids, attention_mask=None):
+    def forward(self, encoded_images, input_ids, attention_mask=None):
         """
         Args:
             encoded_images: Output from the ViT encoder [batch_size, num_patches, hidden_dim]
@@ -112,12 +112,12 @@ class CaptionModel(nn.Module):
         self.encoder = EncoderViT()
         self.decoder = GPT2Decoder(gpt2_name)
 
-    def forward(self, batch_size, images, input_ids, attention_mask=None):
+    def forward(self, images, input_ids, attention_mask=None):
         # Encode images
         encoded_images = self.encoder(images)  # [batch_size, num_patches, hidden_dim]
 
         # Decode text with cross-attention to image features
-        decoded_output = self.decoder(batch_size, encoded_images, input_ids, attention_mask)
+        decoded_output = self.decoder(encoded_images, input_ids, attention_mask)
         return decoded_output
 
 
