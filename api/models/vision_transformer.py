@@ -73,11 +73,11 @@ class GPT2Decoder(nn.Module):
         embeddings = self.gpt2.wte(input_ids)  # [batch_size, seq_len, hidden_size]
         # position_encodings = self.gpt2.wpe(torch.arange(seq_len, device=input_ids.device))
         # position_encodings = position_encodings.unsqueeze(0).expand(batch_size, -1, -1)
-
+        extended_attention_mask = attention_mask[:, None, None, :]
         hidden_states = embeddings # + position_encodings
         for i, block in enumerate(self.gpt2.h):
             # hidden_states = hidden_states.transpose(-3, -2) # [seq_len, batch_size, hidden_size]
-            block_output = block(hidden_states, attention_mask=attention_mask)[0] # do we need attention mask?
+            block_output = block(hidden_states, attention_mask=extended_attention_mask)[0] # do we need attention mask?
             print(f"Block {i} output shape: {block_output.shape}")
             hidden_states = block_output
         
