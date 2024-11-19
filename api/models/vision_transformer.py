@@ -1,3 +1,4 @@
+import PIL
 import torch
 import torch.nn as nn
 import torchvision.models as models
@@ -122,23 +123,23 @@ class CaptionModel(nn.Module):
 
 if __name__ == "__main__":
     # Dummy data
-    batch_size = 2
+    batch_size = 3
     image_size = (3, 224, 224)
-    seq_len = 10
-    gpt2_vocab_size = 50257
+    seq_len = 12
 
     # Random images and captions
-    dummy_images = torch.randn(batch_size, *image_size)  # Random images
-    dummy_input_ids = torch.randint(0, gpt2_vocab_size, (batch_size, seq_len))  # Random token IDs for GPT-2
-    dummy_attention_mask = torch.ones_like(dummy_input_ids, dtype=torch.bool)  # Attention mask
+    image = PIL.Image.open("./dog.png").convert("RGB")
+    
+    dummy_input_ids = torch.randint(0, 50257, (batch_size, seq_len))  # Random token IDs for GPT-2
+    dummy_attention_mask = torch.ones_like(dummy_input_ids, dtype = bool)  # Attention mask
 
     # Initialize the full model
     model = CaptionModel()
+    tsf_image = model.encoder.transforms(image).unsqueeze(0)
+    tsf_image = tsf_image.repeat(batch_size, 1, 1, 1) 
 
     # Preprocess images using the encoder's transform
-    transform = model.encoder.transforms
-    transformed_images = transform(dummy_images) # (batch_size, 3, 224, 224)
 
     # Forward pass
-    output = model(batch_size, transformed_images, dummy_input_ids, dummy_attention_mask)
+    output = model(tsf_image, dummy_input_ids, dummy_attention_mask)
     print("Output shape:", output.shape)  # Expected: [batch_size, seq_len, hidden_size]
