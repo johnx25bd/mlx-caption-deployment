@@ -11,11 +11,11 @@ dataloader = DataLoader(dataset, batch_size=32, collate_fn=collate_fn)
 # 
 # 
 for batch in dataloader:
-    patches = batch['patches']
+    patches = batch['patches'] # [batch_size, max_num_patches, patch_dim, patch_dim, channels]
+    flattened_patches = patches.reshape(patches.shape[0], patches.shape[1], -1) # Flatten last three dimensions
     captions = batch['input_ids']
     # Optionally, you can get the attention masks if needed
     attention_mask = batch['attention_mask']
-    
-    print("Patches shape:", patches.shape)  # Should be [batch_size, max_num_patches, patch_dim, patch_dim, channels]
+    print("Flattened patches shape:", flattened_patches.shape)  # Should be [batch_size, max_num_patches, patch_dim * patch_dim * channels]
     print("Captions shape:", captions.shape)  # Should be [batch_size, max_seq_length]
     break

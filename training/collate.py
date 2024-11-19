@@ -1,8 +1,9 @@
 import torch
 from transformers import GPT2Tokenizer
 
+tokenizer = GPT2Tokenizer.from_pretrained('gpt2')
+
 def collate_fn(batch):
-    tokenizer = GPT2Tokenizer.from_pretrained('gpt2')
     tokenizer.pad_token = tokenizer.eos_token  # Set padding token
 
     # Separate patches and captions
