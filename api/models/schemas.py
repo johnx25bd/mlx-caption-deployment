@@ -2,7 +2,7 @@ from pydantic import BaseModel
 from typing import List, Union
 
 class QueryRequest(BaseModel):
-    query: str
+    query: str  
 
 class DocumentResponse(BaseModel):
     rel_docs: List[str]
@@ -14,3 +14,6 @@ class SelectRequest(BaseModel):
     event_type: str
     query: str
     selected_doc_id: int
+
+class CaptionRequest(BaseModel):
+    image: bytes
