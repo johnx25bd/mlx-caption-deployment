@@ -1,10 +1,16 @@
 
-from fastapi import FastAPI
+from fastapi import FastAPI, UploadFile
+import logging
+from PIL import Image
+import io
 
-from models.schemas import QueryRequest, DocumentResponse, SelectRequest
+from models.schemas import QueryRequest, DocumentResponse, SelectRequest, CaptionRequest
 from services.search import get_docs
 from utils.data import log_event
 app = FastAPI()
+
+logger = logging.getLogger('uvicorn.error')
+logger.setLevel(logging.DEBUG)
 
 @app.get("/")
 async def read_root():
@@ -27,6 +33,16 @@ async def search(query_request: QueryRequest):
         "rel_docs_sim": distances,
         "indices": indices
     }
+
+@app.post("/process-image")
+async def process_image(image: UploadFile):
+    contents = await image.read()
+    pil_image = Image.open(io.BytesIO(contents))
+    logger.debug(f"Image mode: {pil_image.mode}")
+    logger.debug(f"Image size: {pil_image.size}")
+    logger.debug(f"Image format: {pil_image.format}") 
+    # TODO: pass PIL image to model
+    return {"caption": "my caption"}
 
 @app.post("/select")
 async def select(select_request: SelectRequest):

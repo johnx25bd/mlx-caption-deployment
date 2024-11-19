@@ -1,10 +1,10 @@
 import os
 import requests
-import pandas as pd
 import streamlit as st
+from PIL import Image
 
 
-st.set_page_config(page_title="Simple Search Engine", layout="wide")
+st.set_page_config(page_title="Simple Search Enginey", layout="wide")
 
 
 # Get API details from environment variables, with defaults
@@ -19,71 +19,26 @@ def display_document(docs, selected_index, doc_type):
     st.write(f"{doc_type} Document:")
     st.write(docs[selected_index])
 
-st.title("Simple Search Engine")
+st.title("Simple Search Enginex")
 
 col1, col2 = st.columns(2)
 
 with col1:
-    query = st.text_input("Enter your search query", max_chars=200)
+    image_file = st.file_uploader('Select image', ['jpg'])
 
-search_button = st.button("Search")
+st.write(image_file)
+
+search_button = st.button("Submit")
 
 # Initialize session state
 if "search_performed" not in st.session_state:
     st.session_state.search_performed = False
 
-if search_button and query:
+if image_file:
     try:
-        response = requests.post(f"{API_URL}/search", json={"query": query})
-
-        if response.status_code == 200:
-            st.session_state.search_performed = True
-            data = response.json()
-
-            # Store the response data in session state
-            st.session_state.rel_docs = data["rel_docs"]
-            st.session_state.urls = data["urls"]
-            st.session_state.rel_docs_sim = data["rel_docs_sim"]
-            st.session_state.indices = data["indices"]
-        else:
-            st.error(f"Error: Unable to retrieve documents. Status code: {response.status_code}")
-            st.write(f"Response content: {response.text}")
+        pil_image = Image.open(image_file)
+        st.image(pil_image)
+        files = {"image": image_file.getvalue()}
+        response = requests.post(f"{API_URL}/process-image", files=files)
     except Exception as e:
         st.error(f"Error occurred: {str(e)}")
-
-if st.session_state.search_performed:
-    df_similar = pd.DataFrame({
-        "Index": st.session_state.indices,
-        "URL": st.session_state.urls,
-        "Document": [truncate_text(doc) for doc in st.session_state.rel_docs],
-        "Cosine Similarity": st.session_state.rel_docs_sim,  # Using rel_docs_sim instead of distances
-    }).reset_index(drop=True)
-
-    with col1:
-        st.subheader("Most Similar Results:")
-        if len(df_similar) > 0:
-            selected_similar = st.selectbox(
-                "Select a similar document to view full text:",
-                options=list(range(len(df_similar))),
-                format_func=lambda x: df_similar.loc[x, "Document"],
-                on_change=lambda: requests.post(
-                    f"{API_URL}/select", 
-                    json={
-                        "event_type": "select",
-                        "query": query, 
-                        "selected_doc_id": int(df_similar.loc[selected_similar, "Index"])
-                    }
-                ),
-                key="similar_select",
-            )
-            st.table(df_similar[["Document", "Cosine Similarity"]].style.format({"Cosine Similarity": "{:.4f}"}))
-        else:
-            st.write("No similar documents found.")
-
-    with col2:
-        st.subheader("Selected Document:")
-        if len(df_similar) > 0 and selected_similar is not None:
-            display_document(st.session_state.rel_docs, selected_similar, "Similar")
-
-else:
-    st.write("Enter a query and click 'Search' to see results.")
