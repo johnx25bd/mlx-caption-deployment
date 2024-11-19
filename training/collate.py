@@ -5,13 +5,14 @@ def collate_fn(batch):
     tokenizer = GPT2Tokenizer.from_pretrained('gpt2')
     tokenizer.pad_token = tokenizer.eos_token  # Set padding token
 
-    # Separate patches and captionsfrom transformers import GPT2Tokenizer
+    # Separate patches and captions
     patches_list = [item['patches'] for item in batch]
     captions = [item['caption'] for item in batch]
 
-    # Find the max number of patches in the batch
+    # Determine the maximum number of patches in the batch
     max_num_patches = max(patches.size(0) for patches in patches_list)
-    feature_dim = patches_list[0].size(1)  # Assuming all patches have same feature_dim
+    # Get the patch dimensions (e.g., [16, 16, 3])
+    patch_dims = patches_list[0].size()[1:]  # Assuming all patches have the same size
 
     # Pad patches
     padded_patches = []
@@ -19,11 +20,12 @@ def collate_fn(batch):
         num_patches = patches.size(0)
         padding_size = max_num_patches - num_patches
         if padding_size > 0:
-            # Pad with zeros
-            padding = torch.zeros((padding_size, feature_dim), dtype=torch.float32)
+            # Create padding tensor with appropriate shape
+            padding_shape = (padding_size,) + patch_dims  # e.g., (padding_size, 16, 16, 3)
+            padding = torch.zeros(padding_shape, dtype=torch.float32)
             patches = torch.cat([patches, padding], dim=0)
         padded_patches.append(patches)
-    patches_tensor = torch.stack(padded_patches)
+    patches_tensor = torch.stack(padded_patches)  # Shape: [batch_size, max_num_patches, 16, 16, 3]
 
     # Tokenize and pad captions
     captions_encoding = tokenizer(
