@@ -1,6 +1,6 @@
 import PIL
 import torch
-from api.models.vision_transformer import CaptionModel
+from models.vision_transformer import CaptionModel
 
 class CaptionService:
     def __init__(self):

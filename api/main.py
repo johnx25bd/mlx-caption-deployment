@@ -3,9 +3,9 @@ from fastapi import FastAPI, UploadFile
 import logging
 from PIL import Image
 import io
-from api.services.caption import CaptionService
 
-from models.schemas import QueryRequest, DocumentResponse, SelectRequest, CaptionRequest
+from models.schemas import QueryRequest, DocumentResponse, SelectRequest
+from services.caption import CaptionService
 from services.search import get_docs
 from utils.data import log_event
 app = FastAPI()
