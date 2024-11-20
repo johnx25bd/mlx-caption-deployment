@@ -88,7 +88,7 @@ class GPT2Decoder(nn.Module):
         for i, block in enumerate(self.gpt2.h):
             # hidden_states = hidden_states.transpose(-3, -2) # [seq_len, batch_size, hidden_size]
             block_output = block(hidden_states, attention_mask=extended_attention_mask)[0] # do we need attention mask?
-            print(f"Block {i} output shape: {block_output.shape}")
+            # print(f"Block {i} output shape: {block_output.shape}")
             hidden_states = block_output
         
         caption_encoding = hidden_states
