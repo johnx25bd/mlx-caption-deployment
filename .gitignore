@@ -78,3 +78,5 @@ streamlit/data/
 *.parquet
 
 postgres_data/
+
+api/data/

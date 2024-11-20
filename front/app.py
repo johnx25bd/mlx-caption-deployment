@@ -40,5 +40,6 @@ if image_file:
         st.image(pil_image)
         files = {"image": image_file.getvalue()}
         response = requests.post(f"{API_URL}/process-image", files=files)
+        st.write(response.caption)
     except Exception as e:
         st.error(f"Error occurred: {str(e)}")

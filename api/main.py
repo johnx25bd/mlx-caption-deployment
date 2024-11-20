@@ -3,6 +3,7 @@ from fastapi import FastAPI, UploadFile
 import logging
 from PIL import Image
 import io
+from api.services.caption import CaptionService
 
 from models.schemas import QueryRequest, DocumentResponse, SelectRequest, CaptionRequest
 from services.search import get_docs
@@ -40,9 +41,10 @@ async def process_image(image: UploadFile):
     pil_image = Image.open(io.BytesIO(contents))
     logger.debug(f"Image mode: {pil_image.mode}")
     logger.debug(f"Image size: {pil_image.size}")
-    logger.debug(f"Image format: {pil_image.format}") 
-    # TODO: pass PIL image to model
-    return {"caption": "my caption"}
+    logger.debug(f"Image format: {pil_image.format}")
+    caption_service = CaptionService()
+    caption = caption_service.predict_caption(pil_image)
+    return {"caption": caption}
 
 @app.post("/select")
 async def select(select_request: SelectRequest):
