@@ -78,3 +78,8 @@ streamlit/data/
 *.parquet
 
 postgres_data/
+
+api/data/
+
+# hugging face data cache
+cache

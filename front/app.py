@@ -19,14 +19,12 @@ def display_document(docs, selected_index, doc_type):
     st.write(f"{doc_type} Document:")
     st.write(docs[selected_index])
 
-st.title("Simple Search Enginex")
+st.title("Simple Search Engine")
 
 col1, col2 = st.columns(2)
 
 with col1:
-    image_file = st.file_uploader('Select image', ['jpg'])
-
-st.write(image_file)
+    image_file = st.file_uploader('Select image', ['jpg', 'png'])
 
 search_button = st.button("Submit")
 
@@ -39,6 +37,10 @@ if image_file:
         pil_image = Image.open(image_file)
         st.image(pil_image)
         files = {"image": image_file.getvalue()}
-        response = requests.post(f"{API_URL}/process-image", files=files)
+        with st.spinner('Generating caption...'):
+           response = requests.post(f"{API_URL}/process-image", files=files)
+           if response.ok:
+            caption = response.json()["caption"]
+            st.write(f"Caption: {caption}")
     except Exception as e:
         st.error(f"Error occurred: {str(e)}")
