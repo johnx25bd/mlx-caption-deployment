@@ -1,7 +1,7 @@
-from fastapi import APIRouter
+# from fastapi import APIRouter
 
-router = APIRouter()
+# router = APIRouter()
 
-@router.get("/")
-async def read_root():
-    return {"message": "Hi, World!"}
+# @router.get("/")
+# async def read_root():
+#     return {"message": "Hi, World!"}
