@@ -1,32 +1,35 @@
 import torch
+import torchvision.models as models
+
 from transformers import GPT2Tokenizer
 
 tokenizer = GPT2Tokenizer.from_pretrained('gpt2')
 
+special_tokens = {
+    'bos_token': '<|startoftext|>',
+    'eos_token': '<|endoftext|>',
+    'pad_token': '<|pad|>'
+}
+
+tokenizer.add_special_tokens(special_tokens)
+
+bos_token_id = tokenizer.bos_token_id
+eos_token_id = tokenizer.eos_token_id
+pad_token_id = tokenizer.pad_token_id
+
+# Load transforms from torchvision vit_b_16
+transforms = models.ViT_B_16_Weights \
+                .IMAGENET1K_V1 \
+                .transforms()
+
 def collate_fn(batch):
-    tokenizer.pad_token = tokenizer.eos_token  # Set padding token
 
-    # Separate patches and captions
-    patches_list = [item['patches'] for item in batch]
+    # Separate images and captions
+    images_list = [transforms(item['image']) for item in batch]
+    images_tensor = torch.stack(images_list)
+
     captions = [item['caption'] for item in batch]
-
-    # Determine the maximum number of patches in the batch
-    max_num_patches = max(patches.size(0) for patches in patches_list)
-    # Get the patch dimensions (e.g., [16, 16, 3])
-    patch_dims = patches_list[0].size()[1:]  # Assuming all patches have the same size
-
-    # Pad patches
-    padded_patches = []
-    for patches in patches_list:
-        num_patches = patches.size(0)
-        padding_size = max_num_patches - num_patches
-        if padding_size > 0:
-            # Create padding tensor with appropriate shape
-            padding_shape = (padding_size,) + patch_dims  # e.g., (padding_size, 16, 16, 3)
-            padding = torch.zeros(padding_shape, dtype=torch.float32)
-            patches = torch.cat([patches, padding], dim=0)
-        padded_patches.append(patches)
-    patches_tensor = torch.stack(padded_patches)  # Shape: [batch_size, max_num_patches, 16, 16, 3]
+    # print(captions)
 
     # Tokenize and pad captions
     captions_encoding = tokenizer(
@@ -36,8 +39,27 @@ def collate_fn(batch):
         truncation=True
     )
 
+    # Add <bos>, <eos> tokens
+    input_ids = captions_encoding['input_ids']
+
+    bos = torch.tensor([bos_token_id] * input_ids.shape[0]).unsqueeze(1)
+    inputs = torch.cat([bos, input_ids], dim=1)
+
+    pad = torch.tensor([pad_token_id] * input_ids.shape[0]).unsqueeze(1)
+    targets = torch.cat([input_ids, pad], dim=1)
+    mask = (targets == pad_token_id)
+    first_pad_idx = mask.cumsum(dim=1).eq(1) & mask
+    targets[first_pad_idx] = eos_token_id
+
+
+    # Extend attention mask with two additional columns
+    attention_mask = captions_encoding['attention_mask']
+    prepad = torch.tensor([1] * input_ids.shape[0]).reshape(input_ids.shape[0], 1)
+    attention_mask = torch.cat([prepad, attention_mask], dim=1).to(torch.bool)
+
     return {
-        'patches': patches_tensor,
-        'input_ids': captions_encoding['input_ids'],
-        'attention_mask': captions_encoding['attention_mask']
+        'images': images_tensor,
+        'captions': inputs,
+        'targets': targets,
+        'attention_mask': attention_mask
     }
