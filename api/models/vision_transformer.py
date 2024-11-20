@@ -42,10 +42,19 @@ class GPT2Decoder(nn.Module):
     """
     def __init__(self, gpt2_name="gpt2"):
         super().__init__()
-        # Load the GPT-2 model
-        self.gpt2 = GPT2Model.from_pretrained(gpt2_name)
         self.tokenizer = GPT2Tokenizer.from_pretrained(gpt2_name)
+        special_tokens = {
+            'bos_token': '<|startoftext|>',
+            'eos_token': '<|endoftext|>',
+            'pad_token': '<|pad|>'
+        }
+        self.tokenizer.add_special_tokens(special_tokens)
+
+        self.gpt2 = GPT2Model.from_pretrained(gpt2_name)
         
+        # Resize token embeddings to account for new special tokens
+        self.gpt2.resize_token_embeddings(len(self.tokenizer))
+
         # Project image features to match GPT-2's embedding size
         self.image_projection = nn.Linear(768, self.gpt2.config.hidden_size)
 
