@@ -24,7 +24,7 @@ class ImageCaptionDataset(Dataset):
         # patches_tensor = torch.tensor(patches, dtype=torch.float32)
 
         # **Add this line to check the shape**
-        print(f"Sample {idx}, image: {image}")
+        # print(f"Sample {idx}, image: {image}")
 
         return {
             'image': image,
