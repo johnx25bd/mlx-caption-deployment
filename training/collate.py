@@ -1,43 +1,42 @@
 import torch
+import torchvision.models as models
+
 from transformers import GPT2Tokenizer
 
 tokenizer = GPT2Tokenizer.from_pretrained('gpt2')
 
+tokenizer.add_bos_token('<bos>')
+tokenizer.add_eos_token('<eos>')
+tokenizer.add_pad_token('<pad>')
+print(tokenizer.special_tokens_map)
+print('map of special token:', tokenizer.special_tokens_map)
+# Load transforms from torchvision vit_b_16
+transforms = models.ViT_B_16_Weights \
+                .IMAGENET1K_V1 \
+                .transforms()
+
 def collate_fn(batch):
-    tokenizer.pad_token = tokenizer.eos_token  # Set padding token
 
     # Separate patches and captions
-    patches_list = [item['patches'] for item in batch]
+    images_list = [transforms(item['image']) for item in batch]
+    images_tensor = torch.stack(images_list)
+
     captions = [item['caption'] for item in batch]
-
-    # Determine the maximum number of patches in the batch
-    max_num_patches = max(patches.size(0) for patches in patches_list)
-    # Get the patch dimensions (e.g., [16, 16, 3])
-    patch_dims = patches_list[0].size()[1:]  # Assuming all patches have the same size
-
-    # Pad patches
-    padded_patches = []
-    for patches in patches_list:
-        num_patches = patches.size(0)
-        padding_size = max_num_patches - num_patches
-        if padding_size > 0:
-            # Create padding tensor with appropriate shape
-            padding_shape = (padding_size,) + patch_dims  # e.g., (padding_size, 16, 16, 3)
-            padding = torch.zeros(padding_shape, dtype=torch.float32)
-            patches = torch.cat([patches, padding], dim=0)
-        padded_patches.append(patches)
-    patches_tensor = torch.stack(padded_patches)  # Shape: [batch_size, max_num_patches, 16, 16, 3]
+    print(captions)
 
     # Tokenize and pad captions
     captions_encoding = tokenizer(
         captions,
         return_tensors='pt',
         padding=True,
-        truncation=True
+        truncation=True,
+        add_special_tokens=True
     )
+    print(captions_encoding)
+    print(tokenizer.decode(captions_encoding['input_ids'][0]))
 
     return {
-        'patches': patches_tensor,
+        'images': images_tensor,
         'input_ids': captions_encoding['input_ids'],
         'attention_mask': captions_encoding['attention_mask']
     }
