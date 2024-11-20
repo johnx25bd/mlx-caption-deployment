@@ -56,6 +56,7 @@ def collate_fn(batch):
     attention_mask = captions_encoding['attention_mask']
     prepad = torch.tensor([1] * input_ids.shape[0]).reshape(input_ids.shape[0], 1)
     attention_mask = torch.cat([prepad, attention_mask], dim=1).to(torch.bool)
+    # print(attention_mask, attention_mask.shape)
 
     return {
         'images': images_tensor,
@@ -63,3 +64,4 @@ def collate_fn(batch):
         'targets': targets,
         'attention_mask': attention_mask
     }
+    
