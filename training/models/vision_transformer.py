@@ -60,14 +60,16 @@ class GPT2Decoder(nn.Module):
 
         # Cross-attention mechanism
         self.cross_attention = nn.MultiheadAttention(embed_dim=self.gpt2.config.hidden_size, num_heads=8, batch_first=True)
-
+            # TODO: Implement a ModuleList with several cross attention blocks.
+        
         # Feed forward
         self.ffw = nn.Sequential(
             nn.Linear(self.gpt2.config.hidden_size, self.gpt2.config.hidden_size * 4),
             nn.ReLU(),
             nn.Linear(self.gpt2.config.hidden_size * 4, self.gpt2.config.hidden_size),
         )
-        self.logits = nn.Linear(self.gpt2.config.hidden_size, self.tokenizer.vocab_size)
+        self.logits = nn.Linear(self.gpt2.config.hidden_size, 50260) 
+        # TODO: CHEEKY. Don't hardcode the vocab size.
 
     def forward(self, encoded_images, input_ids, attention_mask=None):
         """
@@ -85,7 +87,7 @@ class GPT2Decoder(nn.Module):
         # position_encodings = position_encodings.unsqueeze(0).expand(batch_size, -1, -1)
         extended_attention_mask = attention_mask[:, None, None, :]
         hidden_states = embeddings # + position_encodings
-        for i, block in enumerate(self.gpt2.h):
+        for i, block in enumerate(self.gpt2.h[0:8]):
             # hidden_states = hidden_states.transpose(-3, -2) # [seq_len, batch_size, hidden_size]
             block_output = block(hidden_states, attention_mask=extended_attention_mask)[0] # do we need attention mask?
             print(f"Block {i} output shape: {block_output.shape}")
@@ -98,6 +100,7 @@ class GPT2Decoder(nn.Module):
         projected_images = self.image_projection(encoded_images)  # [batch_size, num_patches, hidden_size]
 
         # Apply cross-attention between image features and GPT-2 embeddings
+        # TODO: Implement a ModuleList with several cross attention blocks.
         attended_output, _ = self.cross_attention(caption_encoding, projected_images, projected_images)
 
         # FEED FORWARD

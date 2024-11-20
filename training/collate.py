@@ -5,9 +5,13 @@ from transformers import GPT2Tokenizer
 
 tokenizer = GPT2Tokenizer.from_pretrained('gpt2')
 
-tokenizer.add_special_tokens({'bos_token': '<bos>'})
-tokenizer.add_special_tokens({'eos_token': '<eos>'})
-tokenizer.add_special_tokens({'pad_token': '<pad>'})
+special_tokens = {
+    'bos_token': '<|startoftext|>',
+    'eos_token': '<|endoftext|>',
+    'pad_token': '<|pad|>'
+}
+
+tokenizer.add_special_tokens(special_tokens)
 
 bos_token_id = tokenizer.bos_token_id
 eos_token_id = tokenizer.eos_token_id
@@ -39,20 +43,23 @@ def collate_fn(batch):
     input_ids = captions_encoding['input_ids']
 
     bos = torch.tensor([bos_token_id] * input_ids.shape[0]).unsqueeze(1)
-    pad = torch.tensor([pad_token_id] * input_ids.shape[0]).unsqueeze(1)
-    input_ids = torch.cat([bos, input_ids, pad], dim=1)
+    inputs = torch.cat([bos, input_ids], dim=1)
 
-    mask = (input_ids == pad_token_id)
+    pad = torch.tensor([pad_token_id] * input_ids.shape[0]).unsqueeze(1)
+    targets = torch.cat([input_ids, pad], dim=1)
+    mask = (targets == pad_token_id)
     first_pad_idx = mask.cumsum(dim=1).eq(1) & mask
-    input_ids[first_pad_idx] = eos_token_id
+    targets[first_pad_idx] = eos_token_id
+
 
     # Extend attention mask with two additional columns
     attention_mask = captions_encoding['attention_mask']
-    prepad = torch.tensor([1, 1] * input_ids.shape[0]).reshape(input_ids.shape[0], 2)
-    attention_mask = torch.cat([prepad, attention_mask], dim=1)
+    prepad = torch.tensor([1] * input_ids.shape[0]).reshape(input_ids.shape[0], 1)
+    attention_mask = torch.cat([prepad, attention_mask], dim=1).to(torch.bool)
 
     return {
         'images': images_tensor,
-        'input_ids': input_ids,
+        'captions': inputs,
+        'targets': targets,
         'attention_mask': attention_mask
     }
