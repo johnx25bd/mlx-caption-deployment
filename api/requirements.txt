@@ -5,11 +5,12 @@ nltk==3.9.1
 numpy==1.26.4
 pandas==2.2.3
 pydantic==1.10.18
-torch==2.1.0
-uvicorn==0.15.0
+torch==2.5.1
+uvicorn>=0.21.0
 pyarrow==14.0.1
 psycopg2-binary==2.9.10
-Pillow
 python-multipart==0.0.6
-transformers
-torchvision
+transformers==4.36.2
+torchvision==0.20.1
+Pillow==10.2.0
+accelerate==0.26.1

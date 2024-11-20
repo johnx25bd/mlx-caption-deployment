@@ -1,3 +1,4 @@
+import os
 import PIL
 import torch
 import torch.nn as nn
@@ -10,16 +11,29 @@ class EncoderViT(nn.Module):
     Vision Transformer Encoder using torchvision's vit_b_16 model.
     Extracts the last hidden layer before the classification head.
     """
-    def __init__(self):
+    def __init__(self, logger=None, eval=False, inference=False):
         super().__init__()
-        # Load the ViT model and weights
-        self.weights = models.ViT_B_16_Weights.IMAGENET1K_V1
-        self.vit = models.vit_b_16(weights=self.weights)
-        self.transforms = self.weights.transforms()
-        self.hidden_output = None
+        self.inference = inference
+        try:
+            torch.cuda.empty_cache() 
+            self.weights = models.ViT_B_16_Weights.DEFAULT
+            weights = self.weights.get_state_dict(progress=True)
+            self.vit = models.vit_b_16(weights=None)
+            self.vit.load_state_dict(weights, strict=True)
 
-        # Register a forward hook to capture the last hidden layer
-        self._register_hooks()
+            if(eval):
+                self.vit.eval()
+
+            self.transforms = self.weights.transforms()
+            self.hidden_output = None
+            self.logger = logger
+
+            # Register a forward hook to capture the last hidden layer
+            self._register_hooks()
+        except Exception as e:
+            if logger:
+                logger.error(f"Error initializing VIT: {e}")
+            raise
 
     def _register_hooks(self):
         self.vit.encoder.layers[-1].register_forward_hook(self._hook_fn)
@@ -28,8 +42,16 @@ class EncoderViT(nn.Module):
         # Capture the hidden output, skipping the [CLS] token
         self.hidden_output = output[:, 1:, :]  # [batch_size, num_patches, hidden_dim]
 
-    def forward(self, x):
-        _ = self.vit(x)  # Trigger the forward hook
+    def forward(self, images):
+        try:
+            if self.inference:
+                with torch.inference_mode():
+                    _ = self.vit(images)  # Trigger the forward hook
+            else:
+                _ = self.vit(images)
+        except Exception as e:
+            self.logger.exception("Error in vit forward pass")
+            raise e
         if self.hidden_output is None:
             raise RuntimeError("Hook did not capture encoder features; ensure the forward pass runs correctly.")
         return self.hidden_output
@@ -40,7 +62,7 @@ class GPT2Decoder(nn.Module):
     Decoder using GPT-2.
     Includes cross-attention to combine image features with textual inputs.
     """
-    def __init__(self, gpt2_name="gpt2"):
+    def __init__(self, gpt2_name="gpt2", eval=False):
         super().__init__()
         self.tokenizer = GPT2Tokenizer.from_pretrained(gpt2_name)
         special_tokens = {
@@ -51,6 +73,8 @@ class GPT2Decoder(nn.Module):
         self.tokenizer.add_special_tokens(special_tokens)
 
         self.gpt2 = GPT2Model.from_pretrained(gpt2_name)
+        if(eval):
+            self.gpt2.eval()
         
         # Resize token embeddings to account for new special tokens
         self.gpt2.resize_token_embeddings(len(self.tokenizer))
@@ -78,7 +102,6 @@ class GPT2Decoder(nn.Module):
         Returns:
             logits: The logits from GPT-2 after integrating image features
         """
-        seq_len = input_ids.shape[1]
         # Pass textual inputs through GPT-2 embeddings
         embeddings = self.gpt2.wte(input_ids)  # [batch_size, seq_len, hidden_size]
         # position_encodings = self.gpt2.wpe(torch.arange(seq_len, device=input_ids.device))
@@ -116,15 +139,14 @@ class CaptionModel(nn.Module):
     Full encoder-decoder model with cross-attention.
     Combines ViT and GPT-2 for image-to-text tasks.
     """
-    def __init__(self, gpt2_name="gpt2"):
+    def __init__(self, gpt2_name="gpt2", logger=None,  eval=False, inference=False):
         super().__init__()
-        self.encoder = EncoderViT()
-        self.decoder = GPT2Decoder(gpt2_name)
+        self.encoder = EncoderViT(logger=logger, eval=eval, inference=inference)
+        self.decoder = GPT2Decoder(gpt2_name, eval=eval)
+        self.logger = logger
 
     def forward(self, images, input_ids, attention_mask=None):
-        # Encode images
         encoded_images = self.encoder(images)  # [batch_size, num_patches, hidden_dim]
-
         # Decode text with cross-attention to image features
         decoded_output = self.decoder(encoded_images, input_ids, attention_mask)
         return decoded_output

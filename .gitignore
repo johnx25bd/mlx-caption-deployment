@@ -80,3 +80,6 @@ streamlit/data/
 postgres_data/
 
 api/data/
+
+# hugging face data cache
+cache

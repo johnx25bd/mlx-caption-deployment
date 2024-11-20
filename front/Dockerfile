@@ -1,5 +1,5 @@
 # Use the official Debian image
-FROM python:3.12
+FROM python:3.11-slim
 
 # Install Python and pip
 RUN apt-get update && \

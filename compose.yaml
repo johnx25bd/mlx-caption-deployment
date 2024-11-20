@@ -3,6 +3,9 @@ services:
     build:
       context: .
       dockerfile: api/Dockerfile
+    volumes:
+      - ./cache:/root/.cache/torch
+      - ./cache/huggingface:/root/.cache/huggingface
     image: mlx-deploy-search-api
     environment:
       - DATABASE_URL=postgres://logger:secure_password@postgres:5432/user_logs
@@ -16,9 +19,11 @@ services:
       - API_HOST=api
       - API_PORT=8000
     ports:
-          - "8501:8501"
+      - "8501:8501"
     depends_on:
       - api
+    security_opt:
+      - seccomp:unconfined
 
   nginx:
     build: ./nginx
@@ -28,7 +33,7 @@ services:
     depends_on:
       - api
       - front
-  
+
   postgres:
     build: ./postgres
     volumes:
@@ -40,8 +45,8 @@ services:
       - POSTGRES_USER=logger
       - POSTGRES_PASSWORD=secure_password
       - POSTGRES_DB=user_logs
-      - POSTGRES_HOST_AUTH_METHOD=trust  # Add this
-      - POSTGRES_INITDB_ARGS=--auth-host=trust 
+      - POSTGRES_HOST_AUTH_METHOD=trust # Add this
+      - POSTGRES_INITDB_ARGS=--auth-host=trust
     healthcheck:
       test: ["CMD", "pg_isready", "-U", "logger", "-d", "user_logs"]
       interval: 10s
@@ -50,3 +55,4 @@ services:
 
 volumes:
   postgres_data:
+  cache:
