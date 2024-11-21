@@ -1,6 +1,6 @@
 import torch
 import torch.nn as nn
-from models.VT_loop import CaptionModel
+from models.vision_transformer import CaptionModel
 from torch.utils.data import DataLoader #, Data
 import wandb
 from sklearn.metrics import precision_score as sk_precision_score
