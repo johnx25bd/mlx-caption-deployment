@@ -43,6 +43,8 @@ except:
 dataset = ImageCaptionDataset(ds)
 dataloader = DataLoader(dataset, batch_size=config["batch_size"], collate_fn=collate_fn, shuffle=False)
 
+device = "cuda" if torch.cuda.is_available() else "cpu"
+
 batch = next(iter(dataloader))
 # print(batch['images'].shape)
 # print(batch['input_ids'].shape)
@@ -63,7 +65,8 @@ def train():
     best_accuracy = 0.0 
 # Initialize model
     model = CaptionModel()
-    
+    model.to(device)
+
     criterion = nn.CrossEntropyLoss()
     optimizer = torch.optim.Adam(model.parameters(), lr=config["learning_rate"])
     
@@ -73,10 +76,10 @@ def train():
         running_loss = 0.0
         for i, batch in enumerate(tqdm(dataloader, desc=f"Epoch {epoch + 1}/{config['epochs']}")):
 
-            images = batch['images']
-            captions = batch['captions']
-            targets = batch['targets']
-            attention_masks = batch['attention_mask']
+            images = batch['images'].to(device)
+            captions = batch['captions'].to(device)
+            targets = batch['targets'].to(device)
+            attention_masks = batch['attention_mask'].to(device)
 
             encoder_input = images  # Batch of images for the encoder
             decoder_input = captions #[:, :-1]  # All but the last token for decoder input
