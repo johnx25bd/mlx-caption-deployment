@@ -82,25 +82,47 @@ class GPT2Decoder(nn.Module):
         self.image_projection = nn.Linear(768, self.gpt2.config.hidden_size)
 
         self.customTransformerBlocks = nn.ModuleList([DecoderTransformerBlock(self.gpt2.config.hidden_size) for i in range(custom_layers)])
-        self.logits = nn.Linear(self.gpt2.config.hidden_size, self.tokenizer.vocab_size)
+        self.logits = nn.Linear(self.gpt2.config.hidden_size, len(self.tokenizer))
 
-    def forward(self, encoded_images, input_ids, attention_mask=None):
+    def forward(self, encoded_images, input_ids, padding_attention_mask=None):
         """
         Args:
             encoded_images: Output from the ViT encoder [batch_size, num_patches, hidden_dim]
             input_ids: Input token IDs for GPT-2 [batch_size, seq_len]
-            attention_mask: Attention mask for GPT-2 inputs [batch_size, seq_len]
+            padding_mask:     
         Returns:
             logits: The logits from GPT-2 after integrating image features
         """
         # Pass textual inputs through GPT-2 embeddings
         embeddings = self.gpt2.wte(input_ids)  # [batch_size, seq_len, hidden_size]
+        batch_size = embeddings.size(0)
+        seq_len = embeddings.size(1)
         position_encodings = self.gpt2.wpe(torch.arange(seq_len, device=input_ids.device))
         position_encodings = position_encodings.unsqueeze(0).expand(batch_size, -1, -1)
-        extended_attention_mask = attention_mask[:, None, None, :]
+
+        #  TODO factor mask combinination out into separate method
+        if padding_attention_mask is None:
+            padding_attention_mask = torch.ones_like(input_ids)
+        padding_attention_mask = padding_attention_mask.float()
+
+        # Create causal mask to ensure GPT-2 can only attend to previous tokens
+        seq_length = input_ids.size(1)
+        causal_mask = torch.triu(torch.ones(seq_length, seq_length), diagonal=1).bool()
+        causal_mask = causal_mask.to(input_ids.device)
+
+        # Combine padding mask with causal mask
+        # Shape: [batch_size, 1, seq_length, seq_length]
+        combined_mask = padding_attention_mask.unsqueeze(1).unsqueeze(2)
+        combined_mask = combined_mask.expand(-1, -1, seq_length, -1)
+        combined_mask = combined_mask.masked_fill(causal_mask, 0.0)
+
+        # Convert to attention mask format expected by GPT-2 (1.0 for tokens to attend to, 0.0 for tokens to ignore)
+        # Then convert 0s to -10000 and 1s to 0 as expected by the model
+        combined_mask = (1.0 - combined_mask) * -10000.0
+
         hidden_state = embeddings + position_encodings
         for i, block in enumerate(self.gpt2.h):
-            hidden_state = block(hidden_state, attention_mask=extended_attention_mask)[0]
+            hidden_state, _ = block(hidden_state, attention_mask=combined_mask)
 
         # Project image features to GPT-2's hidden size
         projected_images = self.image_projection(encoded_images)  # [batch_size, num_patches, hidden_size]
@@ -153,7 +175,7 @@ class CaptionModel(nn.Module):
     def forward(self, images, input_ids, attention_mask=None):
         encoded_images = self.encoder(images)  # [batch_size, num_patches, hidden_dim]
         # Decode text with cross-attention to image features
-        decoded_output = self.decoder(encoded_images, input_ids, attention_mask)
+        decoded_output = self.decoder(encoded_images, input_ids, padding_attention_mask=attention_mask)
         return decoded_output
 
 

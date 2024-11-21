@@ -1,13 +1,13 @@
 import torch
 import torch.nn as nn
-from models.vision_transformer import CaptionModel
+from api.models.vision_transformer import CaptionModel
 from torch.utils.data import DataLoader #, Data
 import wandb
 from sklearn.metrics import precision_score as sk_precision_score
 from tqdm import tqdm
 # from datafile import data  
-from image_caption_dataset import ImageCaptionDataset
-from collate import collate_fn
+from training.image_caption_dataset import ImageCaptionDataset
+from training.collate import collate_fn
 from datasets import load_from_disk
 
 
@@ -30,7 +30,7 @@ wandb.init(project="caption_test", config=config)
 try:
     ds = load_from_disk("./patched_ds") # patched images, untokenized captions
 except: 
-    ds = load_from_disk("./MLX/Week_6_hooks/mlx-caption-deployment/training/patched_ds") # patched images, untokenized captions
+    ds = load_from_disk("./training/patched_ds") # patched images, untokenized captions
 
 dataset = ImageCaptionDataset(ds)
 dataloader = DataLoader(dataset, batch_size=config["batch_size"], collate_fn=collate_fn, shuffle=False)
@@ -93,7 +93,7 @@ def train():
         
         model.eval()  # Set model to evaluation mode
         with torch.no_grad():
-            val_outputs = model(encoder_input, decoder_input)  # Use validation data here
+            val_outputs = model(encoder_input, decoder_input, attention_masks)  # Use validation data here
             val_outputs = val_outputs.view(-1, val_outputs.size(-1))
             val_targets = targets.view(-1)
 
@@ -107,14 +107,14 @@ def train():
             })
 
         if (i + 1) % 10 == 0:  # Print every 10 batches
-            print(f'Epoch [{epoch + 1}/{config['epochs']}], Step [{i + 1}/{len(dataloader)}], Loss: {loss.item():.4f}')
+            print(f'Epoch [{epoch + 1}/{config["epochs"]}], Step [{i + 1}/{len(dataloader)}], Loss: {loss.item():.4f}')
 
         if accuracy > best_accuracy:
             best_accuracy = accuracy
             torch.save(model.state_dict(), "caption_model.pth")  # Save the best model
             print(f"Best model saved with accuracy: {best_accuracy:.4f}")
 
-        print(f'Epoch [{epoch + 1}/{config['epochs']}], Loss: {running_loss / len(dataloader):.4f}, Accuracy: {accuracy:.4f}, Precision: {precision:.4f}')
+        print(f'Epoch [{epoch + 1}/{config["epochs"]}], Loss: {running_loss / len(dataloader):.4f}, Accuracy: {accuracy:.4f}, Precision: {precision:.4f}')
 
     # Finish wandb run
     wandb.finish()
