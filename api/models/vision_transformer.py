@@ -106,8 +106,7 @@ class GPT2Decoder(nn.Module):
 
         # Create causal mask to ensure GPT-2 can only attend to previous tokens
         seq_length = input_ids.size(1)
-        causal_mask = torch.triu(torch.ones(seq_length, seq_length), diagonal=1).bool()
-        causal_mask = causal_mask.to(input_ids.device)
+        causal_mask = torch.triu(torch.ones(seq_length, seq_length, device=input_ids.device), diagonal=1).bool()
 
         # Combine padding mask with causal mask
         # Shape: [batch_size, 1, seq_length, seq_length]
@@ -120,7 +119,7 @@ class GPT2Decoder(nn.Module):
         combined_mask = (1.0 - combined_mask) * -10000.0
 
         hidden_state = embeddings + position_encodings
-        for i, block in enumerate(self.gpt2.h):
+        for i, block in enumerate(self.gpt2.h[:4]):
             hidden_state, _ = block(hidden_state, attention_mask=combined_mask)
 
         # Project image features to GPT-2's hidden size
