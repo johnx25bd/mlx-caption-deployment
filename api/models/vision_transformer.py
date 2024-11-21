@@ -1,10 +1,8 @@
-import os
 import PIL
 import torch
 import torch.nn as nn
 import torchvision.models as models
 from transformers import GPT2Tokenizer, GPT2Model
-
 
 class EncoderViT(nn.Module):
     """
@@ -16,10 +14,10 @@ class EncoderViT(nn.Module):
         self.inference = inference
         try:
             torch.cuda.empty_cache() 
-            self.weights = models.ViT_B_16_Weights.DEFAULT
-            weights = self.weights.get_state_dict(progress=True)
+            self.weights = models.ViT_B_16_Weights.IMAGENET1K_V1
+            weights_dict = self.weights.get_state_dict(progress=True)
             self.vit = models.vit_b_16(weights=None)
-            self.vit.load_state_dict(weights, strict=True)
+            self.vit.load_state_dict(weights_dict, strict=True)
 
             if(eval):
                 self.vit.eval()
@@ -62,7 +60,7 @@ class GPT2Decoder(nn.Module):
     Decoder using GPT-2.
     Includes cross-attention to combine image features with textual inputs.
     """
-    def __init__(self, gpt2_name="gpt2", eval=False):
+    def __init__(self, gpt2_name="gpt2", eval=False, custom_layers=4):
         super().__init__()
         self.tokenizer = GPT2Tokenizer.from_pretrained(gpt2_name)
         special_tokens = {
@@ -82,56 +80,84 @@ class GPT2Decoder(nn.Module):
         # Project image features to match GPT-2's embedding size
         self.image_projection = nn.Linear(768, self.gpt2.config.hidden_size)
 
-        # Cross-attention mechanism
-        self.cross_attention = nn.MultiheadAttention(embed_dim=self.gpt2.config.hidden_size, num_heads=8, batch_first=True)
+        self.customTransformerBlocks = nn.ModuleList([DecoderTransformerBlock(self.gpt2.config.hidden_size) for i in range(custom_layers)])
+        self.logits = nn.Linear(self.gpt2.config.hidden_size, len(self.tokenizer))
 
-        # Feed forward
-        self.ffw = nn.Sequential(
-            nn.Linear(self.gpt2.config.hidden_size, self.gpt2.config.hidden_size * 4),
-            nn.ReLU(),
-            nn.Linear(self.gpt2.config.hidden_size * 4, self.gpt2.config.hidden_size),
-        )
-        self.logits = nn.Linear(self.gpt2.config.hidden_size, self.tokenizer.vocab_size)
-
-    def forward(self, encoded_images, input_ids, attention_mask=None):
+    def forward(self, encoded_images, input_ids, padding_attention_mask=None):
         """
         Args:
             encoded_images: Output from the ViT encoder [batch_size, num_patches, hidden_dim]
             input_ids: Input token IDs for GPT-2 [batch_size, seq_len]
-            attention_mask: Attention mask for GPT-2 inputs [batch_size, seq_len]
+            padding_attention_mask: padding mask [batch_size, seq_len] 
         Returns:
             logits: The logits from GPT-2 after integrating image features
         """
         # Pass textual inputs through GPT-2 embeddings
         embeddings = self.gpt2.wte(input_ids)  # [batch_size, seq_len, hidden_size]
-        # position_encodings = self.gpt2.wpe(torch.arange(seq_len, device=input_ids.device))
-        # position_encodings = position_encodings.unsqueeze(0).expand(batch_size, -1, -1)
-        extended_attention_mask = attention_mask[:, None, None, :]
-        hidden_states = embeddings # + position_encodings
-        for i, block in enumerate(self.gpt2.h):
-            # hidden_states = hidden_states.transpose(-3, -2) # [seq_len, batch_size, hidden_size]
-            block_output = block(hidden_states, attention_mask=extended_attention_mask)[0] # do we need attention mask?
-            # print(f"Block {i} output shape: {block_output.shape}")
-            hidden_states = block_output
-        
-        caption_encoding = hidden_states
+        batch_size = embeddings.size(0)
+        seq_len = embeddings.size(1)
+        position_encodings = self.gpt2.wpe(torch.arange(seq_len, device=input_ids.device))
+        position_encodings = position_encodings.unsqueeze(0).expand(batch_size, -1, -1)
 
+        #  TODO factor mask combinination out into separate method
+        if padding_attention_mask is None:
+            padding_attention_mask = torch.ones_like(input_ids)
+        padding_attention_mask = padding_attention_mask.float()
+
+        # Create causal mask to ensure GPT-2 can only attend to previous tokens
+        seq_length = input_ids.size(1)
+        causal_mask = torch.triu(torch.ones(seq_length, seq_length), diagonal=1).bool()
+        causal_mask = causal_mask.to(input_ids.device)
+
+        # Combine padding mask with causal mask
+        # Shape: [batch_size, 1, seq_length, seq_length]
+        combined_mask = padding_attention_mask.unsqueeze(1).unsqueeze(2)
+        combined_mask = combined_mask.expand(-1, -1, seq_length, -1)
+        combined_mask = combined_mask.masked_fill(causal_mask, 0.0)
+
+        # Convert to attention mask format expected by GPT-2 (1.0 for tokens to attend to, 0.0 for tokens to ignore)
+        # Then convert 0s to -10000 and 1s to 0 as expected by the model
+        combined_mask = (1.0 - combined_mask) * -10000.0
+
+        hidden_state = embeddings + position_encodings
+        for i, block in enumerate(self.gpt2.h):
+            hidden_state, _ = block(hidden_state, attention_mask=combined_mask)
 
         # Project image features to GPT-2's hidden size
         projected_images = self.image_projection(encoded_images)  # [batch_size, num_patches, hidden_size]
 
-        # Apply cross-attention between image features and GPT-2 embeddings
-        attended_output, _ = self.cross_attention(caption_encoding, projected_images, projected_images)
 
-        # FEED FORWARD
+        for block in self.customTransformerBlocks:
+            hidden_state = block(hidden_state, projected_images, projected_images)
+        # OUTPUT size: (seq_len, vocab_size)
+        logits = self.logits(hidden_state)
+        return logits
+    
+class DecoderTransformerBlock(nn.Module):
+    """
+    Takes the input from the GPT2 masked self attention
+    Does cross-attention and FFW
+    """
+    def __init__(self, hidden_size):
+        super().__init__()
+        self.cross_attention = nn.MultiheadAttention(embed_dim=hidden_size, num_heads=8, batch_first=True)
+
+        # Feed forward
+        self.ffw = nn.Sequential(
+            nn.Linear(hidden_size, hidden_size * 4),
+            nn.ReLU(),
+            nn.Linear(hidden_size * 4, hidden_size),
+        )
+
+    def forward(self, query, key, value):
+        # Apply cross-attention between image features and GPT-2 embeddings
+        attended_output, _ = self.cross_attention(query, key, value)
         attended_output = self.ffw(attended_output)
         # Residual connection
-        attended_output = attended_output + caption_encoding
+        attended_output = attended_output + query
+        return attended_output
 
-        # OUTPUT size: (seq_len, vocab_size)
-        logits = self.logits(attended_output)
 
-        return logits
 
 
 class CaptionModel(nn.Module):
@@ -148,7 +174,7 @@ class CaptionModel(nn.Module):
     def forward(self, images, input_ids, attention_mask=None):
         encoded_images = self.encoder(images)  # [batch_size, num_patches, hidden_dim]
         # Decode text with cross-attention to image features
-        decoded_output = self.decoder(encoded_images, input_ids, attention_mask)
+        decoded_output = self.decoder(encoded_images, input_ids, padding_attention_mask=attention_mask)
         return decoded_output
 
 

@@ -83,3 +83,5 @@ api/data/
 
 # hugging face data cache
 cache
+wandb
+training/flickr_ds
