@@ -4,7 +4,6 @@ import torch.nn as nn
 import torchvision.models as models
 from transformers import GPT2Tokenizer, GPT2Model
 
-
 class EncoderViT(nn.Module):
     """
     Vision Transformer Encoder using torchvision's vit_b_16 model.
@@ -15,10 +14,10 @@ class EncoderViT(nn.Module):
         self.inference = inference
         try:
             torch.cuda.empty_cache() 
-            self.weights = models.ViT_B_16_Weights.DEFAULT
-            weights = self.weights.get_state_dict(progress=True)
+            self.weights = models.ViT_B_16_Weights.IMAGENET1K_V1
+            weights_dict = self.weights.get_state_dict(progress=True)
             self.vit = models.vit_b_16(weights=None)
-            self.vit.load_state_dict(weights, strict=True)
+            self.vit.load_state_dict(weights_dict, strict=True)
 
             if(eval):
                 self.vit.eval()
@@ -89,7 +88,7 @@ class GPT2Decoder(nn.Module):
         Args:
             encoded_images: Output from the ViT encoder [batch_size, num_patches, hidden_dim]
             input_ids: Input token IDs for GPT-2 [batch_size, seq_len]
-            padding_mask:     
+            padding_attention_mask: padding mask [batch_size, seq_len] 
         Returns:
             logits: The logits from GPT-2 after integrating image features
         """
