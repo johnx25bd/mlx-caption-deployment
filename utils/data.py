@@ -1,5 +1,21 @@
+import datetime
+import os
+from pathlib import Path
 import psycopg2
-from datetime import datetime
+
+UPLOAD_DIR = "uploads"
+Path(UPLOAD_DIR).mkdir(parents=True, exist_ok=True)
+
+def save_file_to_disk(uploaded_file):
+    """Save uploaded file to disk and return the file path"""
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    filename = f"{timestamp}_{uploaded_file.name}"
+    file_path = os.path.join(UPLOAD_DIR, filename)
+    
+    with open(file_path, "wb") as f:
+        f.write(uploaded_file.getbuffer())
+    
+    return filename, file_path
 
 def upload_image(image_id, filename, filepath, caption):
     try:
@@ -11,11 +27,6 @@ def upload_image(image_id, filename, filepath, caption):
             password="secure_password",
             host="postgres"
         )
-
-        user_id = 1
-        ip_address = "127.0.0.1"
-        timestamp = datetime.now()
-        
         cur = conn.cursor()
         cur.execute(
             """
