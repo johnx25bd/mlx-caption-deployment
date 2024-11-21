@@ -5,6 +5,7 @@ from PIL import Image
 import io
 
 from services.caption import CaptionService
+from utils.data import upload_image
 app = FastAPI()
 
 logger = logging.getLogger('uvicorn.error')
@@ -44,6 +45,21 @@ async def process_image(image: UploadFile):
             status_code=500,
             detail=str(e)
         )
+    
+@app.post("/upload-image")
+async def process_image(image: UploadFile):
+    try:
+        pass
+    # TODO implement
+        
+    except Exception as e:
+        logger.error("Error in upload_image", exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail=str(e)
+        )
+
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
