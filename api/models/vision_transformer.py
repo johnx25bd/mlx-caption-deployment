@@ -1,4 +1,3 @@
-import os
 import PIL
 import torch
 import torch.nn as nn
@@ -62,7 +61,7 @@ class GPT2Decoder(nn.Module):
     Decoder using GPT-2.
     Includes cross-attention to combine image features with textual inputs.
     """
-    def __init__(self, gpt2_name="gpt2", eval=False):
+    def __init__(self, gpt2_name="gpt2", eval=False, custom_layers=4):
         super().__init__()
         self.tokenizer = GPT2Tokenizer.from_pretrained(gpt2_name)
         special_tokens = {
@@ -82,15 +81,7 @@ class GPT2Decoder(nn.Module):
         # Project image features to match GPT-2's embedding size
         self.image_projection = nn.Linear(768, self.gpt2.config.hidden_size)
 
-        # Cross-attention mechanism
-        self.cross_attention = nn.MultiheadAttention(embed_dim=self.gpt2.config.hidden_size, num_heads=8, batch_first=True)
-
-        # Feed forward
-        self.ffw = nn.Sequential(
-            nn.Linear(self.gpt2.config.hidden_size, self.gpt2.config.hidden_size * 4),
-            nn.ReLU(),
-            nn.Linear(self.gpt2.config.hidden_size * 4, self.gpt2.config.hidden_size),
-        )
+        self.customTransformerBlocks = nn.ModuleList([DecoderTransformerBlock(self.gpt2.config.hidden_size) for i in range(custom_layers)])
         self.logits = nn.Linear(self.gpt2.config.hidden_size, self.tokenizer.vocab_size)
 
     def forward(self, encoded_images, input_ids, attention_mask=None):
@@ -104,34 +95,48 @@ class GPT2Decoder(nn.Module):
         """
         # Pass textual inputs through GPT-2 embeddings
         embeddings = self.gpt2.wte(input_ids)  # [batch_size, seq_len, hidden_size]
-        # position_encodings = self.gpt2.wpe(torch.arange(seq_len, device=input_ids.device))
-        # position_encodings = position_encodings.unsqueeze(0).expand(batch_size, -1, -1)
+        position_encodings = self.gpt2.wpe(torch.arange(seq_len, device=input_ids.device))
+        position_encodings = position_encodings.unsqueeze(0).expand(batch_size, -1, -1)
         extended_attention_mask = attention_mask[:, None, None, :]
-        hidden_states = embeddings # + position_encodings
+        hidden_state = embeddings + position_encodings
         for i, block in enumerate(self.gpt2.h):
-            # hidden_states = hidden_states.transpose(-3, -2) # [seq_len, batch_size, hidden_size]
-            block_output = block(hidden_states, attention_mask=extended_attention_mask)[0] # do we need attention mask?
-            # print(f"Block {i} output shape: {block_output.shape}")
-            hidden_states = block_output
-        
-        caption_encoding = hidden_states
-
+            hidden_state = block(hidden_state, attention_mask=extended_attention_mask)[0]
 
         # Project image features to GPT-2's hidden size
         projected_images = self.image_projection(encoded_images)  # [batch_size, num_patches, hidden_size]
 
-        # Apply cross-attention between image features and GPT-2 embeddings
-        attended_output, _ = self.cross_attention(caption_encoding, projected_images, projected_images)
 
-        # FEED FORWARD
+        for block in self.customTransformerBlocks:
+            hidden_state = block(hidden_state, projected_images, projected_images)
+        # OUTPUT size: (seq_len, vocab_size)
+        logits = self.logits(hidden_state)
+        return logits
+    
+class DecoderTransformerBlock(nn.Module):
+    """
+    Takes the input from the GPT2 masked self attention
+    Does cross-attention and FFW
+    """
+    def __init__(self, hidden_size):
+        super().__init__()
+        self.cross_attention = nn.MultiheadAttention(embed_dim=hidden_size, num_heads=8, batch_first=True)
+
+        # Feed forward
+        self.ffw = nn.Sequential(
+            nn.Linear(hidden_size, hidden_size * 4),
+            nn.ReLU(),
+            nn.Linear(hidden_size * 4, hidden_size),
+        )
+
+    def forward(self, query, key, value):
+        # Apply cross-attention between image features and GPT-2 embeddings
+        attended_output, _ = self.cross_attention(query, key, value)
         attended_output = self.ffw(attended_output)
         # Residual connection
-        attended_output = attended_output + caption_encoding
+        attended_output = attended_output + query
+        return attended_output
 
-        # OUTPUT size: (seq_len, vocab_size)
-        logits = self.logits(attended_output)
 
-        return logits
 
 
 class CaptionModel(nn.Module):
