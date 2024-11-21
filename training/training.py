@@ -8,7 +8,7 @@ from tqdm import tqdm
 # from datafile import data  
 from training.image_caption_dataset import ImageCaptionDataset
 from training.collate import collate_fn
-from datasets import load_from_disk
+from datasets import load_from_disk, load_dataset
 
 
 
@@ -27,10 +27,18 @@ GPT2_VOCAB_SIZE = 50260
 # Initialize wandb
 wandb.init(project="caption_test", config=config)
 
+# flickr30k dataset download (ignore if you already have ds on local)
+# ds = load_dataset("nlphuji/flickr30k", split="test") 
+
+# Optionally subset the dataset
+# ds = ds.select(range(NUM_OF_IMAGES)) # Select the first X images w/ their captions
+
+# ds.save_to_disk("flickr_ds")
+
 try:
-    ds = load_from_disk("./patched_ds") # patched images, untokenized captions
+    ds = load_from_disk("./flickr_ds") # patched images, untokenized captions
 except: 
-    ds = load_from_disk("./training/patched_ds") # patched images, untokenized captions
+    ds = load_from_disk("./training/flickr_ds") # patched images, untokenized captions
 
 dataset = ImageCaptionDataset(ds)
 dataloader = DataLoader(dataset, batch_size=config["batch_size"], collate_fn=collate_fn, shuffle=False)
