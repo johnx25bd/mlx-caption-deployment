@@ -1,4 +1,9 @@
-transformers
-torch
+transformers==4.36.2
+torch==2.5.1
 datasets
-Pillow
+Pillow==10.2.0
+torchvision==0.20.1
+wandb
+tqdm
+scikit-learn
+psycopg2-binary==2.9.10
