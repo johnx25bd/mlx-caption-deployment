@@ -3,12 +3,13 @@ import torch.nn as nn
 from api.models.vision_transformer import CaptionModel
 from torch.utils.data import DataLoader #, Data
 import wandb
-from sklearn.metrics import precision_score as sk_precision_score
 from tqdm import tqdm
-# from datafile import data  
+# from datafile import data
 from training.image_caption_dataset import ImageCaptionDataset
 from training.collate import collate_fn
 from datasets import load_from_disk, load_dataset
+
+from training.utils import calculate_metrics
 
 
 
@@ -46,26 +47,8 @@ dataloader = DataLoader(dataset, batch_size=config["batch_size"], collate_fn=col
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
 batch = next(iter(dataloader))
-# print(batch['images'].shape)
-# print(batch['input_ids'].shape)
-# print(batch['attention_mask'].shape)
-
-
-def calculate_metrics(outputs, targets):
-    _, predicted = torch.max(outputs, 1)  # Get the predicted class
-    accuracy = (predicted == targets).float().mean().item()
-      # Calculate accuracy
-    targets_np = targets.cpu().numpy()
-    predicted_np = predicted.cpu().numpy()
-
-    # Calculate precision using Scikit-learn
-    precision = sk_precision_score(targets_np, predicted_np, average='weighted', zero_division=0)
-    return accuracy, precision
-
-
 
 def train():
-
     best_accuracy = 0.0 
 # Initialize model
     model = CaptionModel()
@@ -162,13 +145,8 @@ def train():
 
         print(f'Epoch [{epoch + 1}/{config["epochs"]}], Loss: {running_loss / len(dataloader):.4f}, Accuracy: {accuracy:.4f}, Precision: {precision:.4f}')
 
-    # Finish wandb run
     wandb.finish()
 
-# print('no error yet 2')
 
 if __name__ == "__main__":
-    
     train()
-    # wandb.finish()
-# wandb.finish()

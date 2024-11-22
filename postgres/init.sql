@@ -13,10 +13,10 @@ CREATE TABLE IF NOT EXISTS user_activity (
 CREATE TABLE IF NOT EXISTS user_images (
     id SERIAL PRIMARY KEY,
     timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    image_id TEXT NOT NULL
-    caption TEXT NOT NULL
-    finetuned BOOLEAN DEFAULT FALSE
-    filename TEXT NOT NULL
+    image_id TEXT NOT NULL,
+    caption TEXT NOT NULL,
+    finetuned BOOLEAN DEFAULT FALSE,
+    filename TEXT NOT NULL,
     filepath TEXT NOT NULL
 );
 

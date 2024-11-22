@@ -1,11 +1,19 @@
 
-from fastapi import FastAPI, HTTPException, Request, UploadFile
+from datetime import datetime
+import os
+from pathlib import Path
+from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
 import logging
 from PIL import Image
 import io
+import uuid
 
 from services.caption import CaptionService
-from utils.data import save_file_to_disk
+
+UPLOAD_DIR = "app/images"
+Path(UPLOAD_DIR).mkdir(parents=True, exist_ok=True)
+from data import save_file_to_disk, save_image_data_to_db
+
 app = FastAPI()
 
 logger = logging.getLogger('uvicorn.error')
@@ -25,7 +33,7 @@ async def log_requests(request: Request, call_next):
 
 @app.get("/")
 async def read_root():
-    return {"message": "Welcome to thecaption API. Use POST /process-image to send an image for captioning"}
+    return {"message": "Welcome to the caption API. Use POST /process-image to send an image for captioning"}
 
 @app.post("/process-image")
 async def process_image(image: UploadFile):
@@ -45,19 +53,19 @@ async def process_image(image: UploadFile):
             status_code=500,
             detail=str(e)
         )
-    
+
 @app.post("/upload-image")
-async def upload_image_handler(image: UploadFile):
+async def upload_image_handler(
+    image: UploadFile = File(...),
+    caption: str = Form(...)
+):
     try:
-       save_file_to_disk(image)
-    # TODO implement
-        
+        name, file_path = await save_file_to_disk(image)
+        save_image_data_to_db(str(uuid.uuid4()), name, file_path, caption)
+        return {"message": "Success"}
     except Exception as e:
         logger.error("Error in upload_image", exc_info=True)
-        raise HTTPException(
-            status_code=500,
-            detail=str(e)
-        )
+        raise HTTPException(status_code=500, detail=str(e))
 
 if __name__ == "__main__":
     import uvicorn

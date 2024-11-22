@@ -1,4 +1,4 @@
-import datetime
+from datetime import datetime
 import os
 from pathlib import Path
 import psycopg2
@@ -6,14 +6,14 @@ import psycopg2
 UPLOAD_DIR = "uploads"
 Path(UPLOAD_DIR).mkdir(parents=True, exist_ok=True)
 
-def save_file_to_disk(uploaded_file):
-    """Save uploaded file to disk and return the file path"""
+async def save_file_to_disk(uploaded_file):
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    filename = f"{timestamp}_{uploaded_file.name}"
+    filename = f"{timestamp}_{uploaded_file.filename}"
     file_path = os.path.join(UPLOAD_DIR, filename)
     
+    contents = await uploaded_file.read()
     with open(file_path, "wb") as f:
-        f.write(uploaded_file.getbuffer())
+        f.write(contents)
     
     return filename, file_path
 
