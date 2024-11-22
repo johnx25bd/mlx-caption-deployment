@@ -6,11 +6,18 @@ services:
     volumes:
       - ./cache:/root/.cache/torch
       - ./cache/huggingface:/root/.cache/huggingface
+      - ./uploads:/app/images
     image: mlx-deploy-search-api
     environment:
       - DATABASE_URL=postgres://logger:secure_password@postgres:5432/user_logs
     ports:
       - "8000:8000"
+    develop:
+      watch:
+        - path: ./api/Dockerfile
+          action: rebuild
+        - path: ./api
+          action: rebuild
 
   front:
     build: ./front
@@ -20,16 +27,26 @@ services:
       - API_PORT=8000
     ports:
       - "8501:8501"
+    # uncomment for hot reloading when running docker locally
+    # volumes:
+    #   - ./front:/app
+    # command: streamlit run app.py --server.runOnSave=true
     depends_on:
       - api
     security_opt:
       - seccomp:unconfined
+    develop:
+      watch:
+        - path: ./front/Dockerfile
+          action: rebuild
+        - path: ./front
+          action: rebuild
 
   nginx:
     build: ./nginx
-    image: nginx:latest
     ports:
       - 80:80
+      - "443:443"
     depends_on:
       - api
       - front
@@ -37,8 +54,10 @@ services:
   postgres:
     build: ./postgres
     volumes:
-      - ./postgres/postgres_data:/var/lib/postgresql/data
-      - ./postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
+      - postgres_data:/var/lib/postgresql/data
+      # - type: bind
+      #   source: ./postgres/init.sql
+      #   target: /docker-entrypoint-initdb.d/init.sql
     ports:
       - "5433:5432"
     environment:
@@ -53,6 +72,19 @@ services:
       timeout: 5s
       retries: 5
 
+  training:
+    build: ./training
+    volumes:
+      - ./cache:/root/.cache/torch
+      - ./cache/huggingface:/root/.cache/huggingface
+      - ./uploads:/app/images
+      - ./api:/app/api # Mount the api directory so that we can import the model
+      - .:/app # Mount whole project to fix issue with running training file w/imports
+    environment:
+      - PYTHONPATH=/app
+      - DATABASE_URL=postgres://logger:secure_password@postgres:5432/user_logs
+
 volumes:
   postgres_data:
   cache:
+  uploads:

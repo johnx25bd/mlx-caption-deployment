@@ -17,11 +17,11 @@ def save_file_to_disk(uploaded_file):
     
     return filename, file_path
 
-def upload_image(image_id, filename, filepath, caption):
+def save_image_data_to_db(image_id, filename, filepath, caption):
     try:
-        # Pull this out into a function
+        # TODO Pull this out into a function
         # And read in credentials from env
-        conn = psycopg2.connect( # TODO: Read in credentials from env
+        conn = psycopg2.connect(
             dbname="user_logs",
             user="logger",
             password="secure_password",
