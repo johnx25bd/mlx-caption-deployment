@@ -3,6 +3,7 @@ import torch
 import PIL
 from PIL import Image
 
+from services.load_weights import load_weights
 from models.vision_transformer import CaptionModel
 
 logging.basicConfig(level=logging.DEBUG)
@@ -13,6 +14,8 @@ class CaptionService:
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
         
         self.model = CaptionModel(eval=True, logger=logger, inference=True).to(self.device)
+        state_dict = load_weights(self.device)
+        self.model.load_state_dict(state_dict)
         self.model.eval()
 
     def prepare_inference_input(self, pil_image):
