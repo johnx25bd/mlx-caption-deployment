@@ -120,7 +120,7 @@ class GPT2Decoder(nn.Module):
 
         hidden_state = embeddings + position_encodings
         for i, block in enumerate(self.gpt2.h[:4]):
-            hidden_state, _ = block(hidden_state, attention_mask=combined_mask)
+            hidden_state = block(hidden_state, attention_mask=combined_mask)[0]
 
         # Project image features to GPT-2's hidden size
         projected_images = self.image_projection(encoded_images)  # [batch_size, num_patches, hidden_size]
@@ -155,8 +155,6 @@ class DecoderTransformerBlock(nn.Module):
         # Residual connection
         attended_output = attended_output + query
         return attended_output
-
-
 
 
 class CaptionModel(nn.Module):
