@@ -1,4 +1,10 @@
-# Search App, Containerized
+# MLX5 Week 6: Image Captioning with Vision Transformer and GPT-2 Decoder
+
+This repository contains a containerized web application using FastAPI for the backend API, Streamlit for the frontend, and Nginx as a reverse proxy. The application is orchestrated using Docker Compose.
+
+This application demonstrates modern MLOps practices by implementing a image captioning architecture. It combines Vision Transformer (ViT) for image feature extraction with GPT-2 for natural language generation, intended to create detailed, contextually relevant natural language descriptions of images. The system employs containerized microservices using Docker Compose. 
+
+Key technical features include attention-based visual encoding, transformer-based text generation, and optimized model serving with batch inference support.
 
 ## Quickstart
 

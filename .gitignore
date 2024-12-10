@@ -47,6 +47,7 @@ __pypackages__/
 # Environments variables and settings files
 .env
 .env.*
+.ssh
 
 # Jupyter Notebook files
 .ipynb_checkpoints
